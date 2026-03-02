@@ -3,3 +3,5 @@ Data/
 .vscode/
 output/
 *.pyc
+*.pkl
+*.pt

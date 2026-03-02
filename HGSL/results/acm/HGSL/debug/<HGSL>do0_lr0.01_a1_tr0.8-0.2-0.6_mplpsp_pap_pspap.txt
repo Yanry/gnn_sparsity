@@ -1,0 +1,3 @@
+
+{'test_f1': '0.9334', 'test_mif1': '0.9322', 'val_f1': '0.9405', 'val_mif1': '0.9400', 'best_epoch': 66}
+{'model': 'HGSL', 'exp_name': 'debug', 'dataset': 'acm', 'alpha': 1, 'dropout': 0, 'fgd_th': 0.8, 'fgh_th': 0.2, 'sem_th': 0.6, 'mp_list': ['psp', 'pap', 'pspap'], 'lr': 0.01, 'seed': 0}

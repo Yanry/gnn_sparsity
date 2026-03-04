@@ -5,6 +5,7 @@ python eval_with_gemm_hook.py /home/zhaojun/proj26/models/opt-125m --data-root /
 """
 import os
 import time
+import json
 import torch
 import torch.nn as nn
 import argparse
@@ -12,7 +13,9 @@ import numpy as np
 
 from datautils import get_loaders
 from modelutils import find_layers, DEV
-from gemm_hook import GEMMHookManager
+#from gemm_hook import GEMMHookManager
+from gemm_hook_improved import ImprovedGEMMHookManager as GEMMHookManager
+from opt_attention_hook import OPTAttentionHook
 
 try:
     from opt import get_opt
@@ -26,9 +29,19 @@ except:
         torch.nn.init.uniform_ = skip
         torch.nn.init.normal_ = skip
         from transformers import OPTForCausalLM
-        model = OPTForCausalLM.from_pretrained(model, torch_dtype='auto')
+        model = OPTForCausalLM.from_pretrained(
+            model,
+            torch_dtype='auto',
+            attn_implementation='eager',
+        )
         model.seqlen = model.config.max_position_embeddings
         return model
+
+
+def _ensure_eager_attention(model):
+    """强制使用 eager attention，确保可捕获 QK^T 和 attention@V matmul。"""
+    if hasattr(model, 'config'):
+        model.config._attn_implementation = 'eager'
 
 
 def evaluate_with_gemm_hook(model, dataloader, testloader, hook_manager, dataset_name, inference_idx=0, log_wandb=False):
@@ -39,12 +52,15 @@ def evaluate_with_gemm_hook(model, dataloader, testloader, hook_manager, dataset
         inference_idx: 推理索引，用于在多次推理中使用不同的数据片段
     """
     model.eval()
+    _ensure_eager_attention(model)
     
     # 确保模型在正确的设备上
     model = model.to(DEV)
     
     # 注册 hook
     hook_manager.register_hooks(model)
+    attention_hook = OPTAttentionHook(save_tensors=False)
+    attention_hook.install_hook()
     
     use_cache = model.config.use_cache
     model.config.use_cache = False
@@ -66,33 +82,42 @@ def evaluate_with_gemm_hook(model, dataloader, testloader, hook_manager, dataset
     else:
         offset = 0
     
-    with torch.no_grad():
-        for i in range(min(nsamples, 5)):  # 最多计算 5 个样本
-            start_idx = offset + (i * model.seqlen)
-            end_idx = start_idx + model.seqlen
-            
-            # 确保不超出范围
-            if end_idx > testenc.shape[1]:
-                break
-            
-            batch = testenc[:, start_idx:end_idx].to(DEV)
-            
-            # 前向传播收集 GEMM 数据
-            outputs = model(batch)
-            lm_logits = outputs.logits if hasattr(outputs, 'logits') else outputs[0]
-            
-            shift_logits = lm_logits[:, :-1, :].contiguous()
-            shift_labels = batch[:, 1:]
-            
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-            neg_log_likelihood = loss.float() * model.seqlen
-            nlls.append(neg_log_likelihood.item())
+    try:
+        with torch.no_grad():
+            for i in range(min(nsamples, 5)):  # 最多计算 5 个样本
+                start_idx = offset + (i * model.seqlen)
+                end_idx = start_idx + model.seqlen
+                
+                # 确保不超出范围
+                if end_idx > testenc.shape[1]:
+                    break
+                
+                batch = testenc[:, start_idx:end_idx].to(DEV)
+                
+                # 前向传播收集 GEMM 数据
+                outputs = model(batch)
+                lm_logits = outputs.logits if hasattr(outputs, 'logits') else outputs[0]
+                
+                shift_logits = lm_logits[:, :-1, :].contiguous()
+                shift_labels = batch[:, 1:]
+                
+                loss_fct = nn.CrossEntropyLoss()
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                neg_log_likelihood = loss.float() * model.seqlen
+                nlls.append(neg_log_likelihood.item())
+    finally:
+        attention_hook.remove_hook()
     
     if not nlls:
         raise ValueError("评估失败：没有计算任何样本，nlls 列表为空")
     
     ppl = torch.exp(torch.tensor(sum(nlls) / (len(nlls) * model.seqlen)))
+
+    # 保存 attention matmul 统计（仅当本次推理目录已创建）
+    if hook_manager.current_inference_dir is not None:
+        attention_stats_path = os.path.join(hook_manager.current_inference_dir, 'attention_matmul_stats.json')
+        with open(attention_stats_path, 'w') as f:
+            json.dump(attention_hook.get_summary(), f, indent=2)
     
     # 移除 hook
     hook_manager.remove_hooks()
@@ -147,6 +172,7 @@ def run_evaluation_with_configs(model_path, num_inferences=5, data_root=None, ou
     # 加载模型一次
     print(f"加载模型: {model_path}")
     model = get_opt(model_path)
+    _ensure_eager_attention(model)
     model = model.to(DEV)
     model.eval()
     
@@ -227,6 +253,7 @@ def run_evaluation_with_configs(model_path, num_inferences=5, data_root=None, ou
                 # 重新加载模型以清除任何修改
                 if inference_idx < num_inferences - 1:  # 最后一次不需要重新加载
                     model = get_opt(model_path)
+                    _ensure_eager_attention(model)
                     model = model.to(DEV)
                     model.eval()
             
@@ -239,6 +266,7 @@ def run_evaluation_with_configs(model_path, num_inferences=5, data_root=None, ou
             
             # 重新加载模型进行下一个数据集
             model = get_opt(model_path)
+            _ensure_eager_attention(model)
             model = model.to(DEV)
             model.eval()
     

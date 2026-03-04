@@ -37,6 +37,7 @@ class GEMMHookManager:
         self.current_inference_dir = None
         self.hooks = []
         self.gemm_data = {}
+        self.tensor_cache = {}  # 初始化 tensor 缓存
         
     def create_inference_dir(self):
         """为每次推理创建新目录"""
@@ -47,6 +48,7 @@ class GEMMHookManager:
         )
         os.makedirs(self.current_inference_dir, exist_ok=True)
         self.gemm_data = {}
+        self.tensor_cache = {}  # 清空 tensor 缓存
         
     def register_hooks(self, model):
         """注册所有线性层和 matmul 的 hook"""
@@ -90,6 +92,9 @@ class GEMMHookManager:
         # Hook for matmul operations (includes attention qk^T and attention*V)
         self._register_matmul_hooks(model)
         
+        # 额外：为 attention 层添加 hook 以捕获 attention scores
+        self._register_attention_hooks(model)
+        
     def _compute_sparsity(self, tensor):
         """计算张量的稀疏性"""
         if tensor.numel() == 0:
@@ -98,14 +103,16 @@ class GEMMHookManager:
     
     def _register_matmul_hooks(self, model):
         """为 matmul 操作注册 hook 以捕获 attention 计算"""
-        matmul_counter = [0]
+        self.matmul_counter = [0]
+        self._matmul_threshold = 0  # 捕获所有 matmul 操作
         
         # 保存原始函数
-        original_matmul = torch.matmul
-        original_bmm = torch.bmm
-        original_mm = torch.mm
-        original_tensor_matmul = torch.Tensor.__matmul__
+        self._original_matmul = torch.matmul
+        self._original_bmm = torch.bmm
+        self._original_mm = torch.mm
+        self._original_tensor_matmul = torch.Tensor.__matmul__
         
+        # 创建闭包以访问 self
         def create_matmul_hook(op_name, original_func):
             """创建一个通用的 matmul hook"""
             def hook(input1, input2):
@@ -113,15 +120,15 @@ class GEMMHookManager:
                 
                 # 记录 matmul 操作的信息
                 try:
-                    inp1_cpu = input1.detach().cpu() if isinstance(input1, torch.Tensor) else input1
-                    inp2_cpu = input2.detach().cpu() if isinstance(input2, torch.Tensor) else input2
-                    result_cpu = result.detach().cpu() if isinstance(result, torch.Tensor) else result
+                    inp1_cpu = input1.detach().cpu().float() if isinstance(input1, torch.Tensor) else input1
+                    inp2_cpu = input2.detach().cpu().float() if isinstance(input2, torch.Tensor) else input2
+                    result_cpu = result.detach().cpu().float() if isinstance(result, torch.Tensor) else result
                     
-                    # 只记录足够大的矩阵操作（避免记录太多小操作）
+                    # 记录足够大的矩阵操作
                     if isinstance(inp1_cpu, torch.Tensor) and isinstance(inp2_cpu, torch.Tensor):
-                        if inp1_cpu.numel() > 1000:  # 只记录足够大的操作
-                            matmul_key = f"{op_name}_{matmul_counter[0]}"
-                            matmul_counter[0] += 1
+                        if inp1_cpu.numel() > self._matmul_threshold:
+                            matmul_key = f"{op_name}_{self.matmul_counter[0]}"
+                            self.matmul_counter[0] += 1
                             
                             self.gemm_data[matmul_key] = {
                                 'operation': op_name,
@@ -129,8 +136,10 @@ class GEMMHookManager:
                                 'input2_shape': tuple(inp2_cpu.shape),
                                 'output_shape': tuple(result_cpu.shape),
                                 'input_format': 'float32',
-                                'input1_sparsity': self._compute_sparsity(inp1_cpu),
-                                'input2_sparsity': self._compute_sparsity(inp2_cpu),
+                                'input1_numel': int(inp1_cpu.numel()),
+                                'input2_numel': int(inp2_cpu.numel()),
+                                'input1_sparsity': float(self._compute_sparsity(inp1_cpu)),
+                                'input2_sparsity': float(self._compute_sparsity(inp2_cpu)),
                             }
                             
                             # 缓存 tensor 数据到内存，稍后统一保存
@@ -139,22 +148,53 @@ class GEMMHookManager:
                             self.tensor_cache[f"{matmul_key}_output"] = result_cpu
                 except Exception as e:
                     # 忽略保存失败的情况
+                    import traceback
                     pass
                 
                 return result
             return hook
         
         # 替换各种矩阵乘法函数
-        torch.matmul = create_matmul_hook('matmul', original_matmul)
-        torch.bmm = create_matmul_hook('bmm', original_bmm)
-        torch.mm = create_matmul_hook('mm', original_mm)
-        torch.Tensor.__matmul__ = create_matmul_hook('tensor_matmul', original_tensor_matmul)
+        torch.matmul = create_matmul_hook('matmul', self._original_matmul)
+        torch.bmm = create_matmul_hook('bmm', self._original_bmm)
+        torch.mm = create_matmul_hook('mm', self._original_mm)
+        torch.Tensor.__matmul__ = create_matmul_hook('tensor_matmul', self._original_tensor_matmul)
+    
+    def _register_attention_hooks(self, model):
+        """为 attention 模块注册 hook 以直接捕获 attention 操作"""
+        attention_counter = [0]
         
-        # 保存原始函数以便恢复
-        self._original_matmul = original_matmul
-        self._original_bmm = original_bmm
-        self._original_mm = original_mm
-        self._original_tensor_matmul = original_tensor_matmul
+        # 查找所有 attention 层（OPT 使用 OPTAttention）
+        for name, module in model.named_modules():
+            if 'self_attn' in name or 'attention' in name.lower():
+                # 为 attention 层的前向输出注册 hook
+                def attention_hook(module, input, output, idx=attention_counter[0], mod_name=name):
+                    """Hook 用于捕获 attention 的输出"""
+                    try:
+                        # output 通常是 (attn_output, attn_weights, ...)
+                        if isinstance(output, tuple):
+                            attn_output = output[0]  # attention 输出
+                        else:
+                            attn_output = output
+                        
+                        if isinstance(attn_output, torch.Tensor) and attn_output.numel() > 100:
+                            attn_key = f"attn_output_{idx}"
+                            self.gemm_data[attn_key] = {
+                                'operation': 'attention_output',
+                                'module': mod_name,
+                                'output_shape': tuple(attn_output.shape),
+                                'output_numel': int(attn_output.numel()),
+                                'output_sparsity': float(self._compute_sparsity(attn_output.detach().cpu().float())),
+                            }
+                            
+                            # 缓存 tensor
+                            self.tensor_cache[attn_key] = attn_output.detach().cpu().float()
+                    except Exception as e:
+                        pass
+                
+                hook = module.register_forward_hook(attention_hook)
+                self.hooks.append(hook)
+                attention_counter[0] += 1
     
     def _restore_matmul(self):
         """恢复原始的 matmul 相关函数"""

@@ -1,0 +1,1010 @@
+{
+  "layer_0_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -20.592374801635742,
+    "output_max": 13.024383544921875,
+    "output_mean": -0.7889783978462219,
+    "output_std": 2.1745657920837402
+  },
+  "layer_0_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.35462722182273865,
+    "output_max": 0.5845856070518494,
+    "output_mean": -0.00032776594161987305,
+    "output_std": 0.05086808651685715
+  },
+  "layer_0_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.03891931101679802,
+    "top_1_percent_threshold": 0.09466762840747833,
+    "top_10_percent_threshold": 0.016074657440185547
+  },
+  "layer_10_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -17.15159797668457,
+    "output_max": 15.397743225097656,
+    "output_mean": -2.044933557510376,
+    "output_std": 3.8486995697021484
+  },
+  "layer_10_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.878044068813324,
+    "output_max": 0.9914072155952454,
+    "output_mean": 0.002784986747428775,
+    "output_std": 0.0813484638929367
+  },
+  "layer_10_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.06783861666917801,
+    "top_1_percent_threshold": 0.1124776154756546,
+    "top_10_percent_threshold": 0.004266293253749609
+  },
+  "layer_11_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -11.785093307495117,
+    "output_max": 19.43296241760254,
+    "output_mean": -1.1084493398666382,
+    "output_std": 2.6892037391662598
+  },
+  "layer_11_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -1.0636622905731201,
+    "output_max": 0.9484274983406067,
+    "output_mean": -0.0031438705045729876,
+    "output_std": 0.1617630124092102
+  },
+  "layer_11_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.04775737598538399,
+    "top_1_percent_threshold": 0.11821846663951874,
+    "top_10_percent_threshold": 0.012026901356875896
+  },
+  "layer_1_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -14.119956016540527,
+    "output_max": 6.399112701416016,
+    "output_mean": -2.3771369457244873,
+    "output_std": 1.7712962627410889
+  },
+  "layer_1_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.42422056198120117,
+    "output_max": 0.30931559205055237,
+    "output_mean": 0.000662848528008908,
+    "output_std": 0.03875020146369934
+  },
+  "layer_1_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.0485207736492157,
+    "top_1_percent_threshold": 0.11738478392362595,
+    "top_10_percent_threshold": 0.01052863709628582
+  },
+  "layer_2_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -14.806361198425293,
+    "output_max": 14.545550346374512,
+    "output_mean": -2.847975015640259,
+    "output_std": 2.6943647861480713
+  },
+  "layer_2_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.513830840587616,
+    "output_max": 0.673224151134491,
+    "output_mean": 0.0010862420313060284,
+    "output_std": 0.04718371108174324
+  },
+  "layer_2_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.058176711201667786,
+    "top_1_percent_threshold": 0.13153332471847534,
+    "top_10_percent_threshold": 0.007927458733320236
+  },
+  "layer_3_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -15.69088077545166,
+    "output_max": 7.1320600509643555,
+    "output_mean": -3.674748659133911,
+    "output_std": 3.7105162143707275
+  },
+  "layer_3_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.5162553191184998,
+    "output_max": 0.4424203038215637,
+    "output_mean": -0.0006369389593601227,
+    "output_std": 0.03589634969830513
+  },
+  "layer_3_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.06387118995189667,
+    "top_1_percent_threshold": 0.08626766502857208,
+    "top_10_percent_threshold": 0.0057505834847688675
+  },
+  "layer_4_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -15.475872993469238,
+    "output_max": 11.4515380859375,
+    "output_mean": -2.027338981628418,
+    "output_std": 4.2854228019714355
+  },
+  "layer_4_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.478067547082901,
+    "output_max": 0.600364089012146,
+    "output_mean": 0.0006498447037301958,
+    "output_std": 0.04522236809134483
+  },
+  "layer_4_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.06451457738876343,
+    "top_1_percent_threshold": 0.1272190362215042,
+    "top_10_percent_threshold": 0.00457523949444294
+  },
+  "layer_5_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -21.122243881225586,
+    "output_max": 11.838584899902344,
+    "output_mean": -2.957838296890259,
+    "output_std": 4.439397811889648
+  },
+  "layer_5_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.7159750461578369,
+    "output_max": 0.6987941861152649,
+    "output_mean": 0.0012528355000540614,
+    "output_std": 0.05985640734434128
+  },
+  "layer_5_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.0680382177233696,
+    "top_1_percent_threshold": 0.10614226758480072,
+    "top_10_percent_threshold": 0.003919381182640791
+  },
+  "layer_6_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -18.07573699951172,
+    "output_max": 12.606143951416016,
+    "output_mean": -1.8030880689620972,
+    "output_std": 4.395395755767822
+  },
+  "layer_6_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -1.0027564764022827,
+    "output_max": 0.5901352167129517,
+    "output_mean": 0.0018341513350605965,
+    "output_std": 0.061188891530036926
+  },
+  "layer_6_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.06810987740755081,
+    "top_1_percent_threshold": 0.09918156266212463,
+    "top_10_percent_threshold": 0.004322950262576342
+  },
+  "layer_7_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -14.72611141204834,
+    "output_max": 20.587684631347656,
+    "output_mean": -1.2830463647842407,
+    "output_std": 3.898846387863159
+  },
+  "layer_7_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.8355470895767212,
+    "output_max": 0.9584219455718994,
+    "output_mean": 0.00034731850610114634,
+    "output_std": 0.06275594234466553
+  },
+  "layer_7_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.06766237318515778,
+    "top_1_percent_threshold": 0.11099496483802795,
+    "top_10_percent_threshold": 0.004173262510448694
+  },
+  "layer_8_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -18.862022399902344,
+    "output_max": 17.201295852661133,
+    "output_mean": -1.021154522895813,
+    "output_std": 4.403058052062988
+  },
+  "layer_8_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.7202704548835754,
+    "output_max": 0.7890883088111877,
+    "output_mean": 0.0006694115581922233,
+    "output_std": 0.06345425546169281
+  },
+  "layer_8_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.06783098727464676,
+    "top_1_percent_threshold": 0.08723241090774536,
+    "top_10_percent_threshold": 0.005039722193032503
+  },
+  "layer_9_QK^T": {
+    "operation": "Q @ K^T",
+    "query_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "key_transposed_shape": [
+      1,
+      12,
+      64,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "scaling_factor": 1.0,
+    "output_numel": 196608,
+    "output_sparsity": 0.0,
+    "output_min": -19.935768127441406,
+    "output_max": 15.288534164428711,
+    "output_mean": -0.6659319400787354,
+    "output_std": 3.7059521675109863
+  },
+  "layer_9_attention@V": {
+    "operation": "softmax(Q@K^T) @ V",
+    "attention_weights_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "value_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      64
+    ],
+    "output_numel": 98304,
+    "output_sparsity": 0.0,
+    "output_min": -0.8244765400886536,
+    "output_max": 0.9534732103347778,
+    "output_mean": 0.001393248327076435,
+    "output_std": 0.08267100155353546
+  },
+  "layer_9_attention_weights": {
+    "operation": "softmax(Q@K^T)",
+    "input_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_shape": [
+      1,
+      12,
+      128,
+      128
+    ],
+    "output_numel": 196608,
+    "output_sparsity": 0.49609375,
+    "output_min": 0.0,
+    "output_max": 1.0,
+    "output_mean": 0.0078125,
+    "output_std": 0.05691974237561226,
+    "top_1_percent_threshold": 0.09900454431772232,
+    "top_10_percent_threshold": 0.009179273620247841
+  }
+}

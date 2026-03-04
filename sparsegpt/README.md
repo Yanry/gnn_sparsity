@@ -22,19 +22,19 @@ See also the CMD-argument documentation.
 
 ```
 # Run dense baseline
-python opt.py facebook/opt-125m c4 --data-root /home/zhaojun/proj26/datasets
+python opt.py /home/zhaojun/proj26/models/opt-125m c4 --data-root /home/zhaojun/proj26/datasets
 
 # Run magnitude baseline
-python opt.py facebook/opt-125m c4 --sparsity .5 --gmp --data-root /home/zhaojun/proj26/datasets
+python opt.py /home/zhaojun/proj26/models/opt-125m c4 --sparsity .5 --gmp --data-root /home/zhaojun/proj26/datasets
  
 # Prune to 50\% uniform sparsity with SparseGPT
-python opt.py facebook/opt-125m c4 --sparsity .5 --data-root /home/zhaojun/proj26/datasets
+python opt.py /home/zhaojun/proj26/models/opt-125m c4 --sparsity .5 --data-root /home/zhaojun/proj26/datasets
 
 # Prune to full 2:4 sparsity with SparseGPT
-python opt.py facebook/opt-125m c4 --prunen 2 --prunem 4 --data-root /home/zhaojun/proj26/datasets
+python opt.py /home/zhaojun/proj26/models/opt-125m c4 --prunen 2 --prunem 4 --data-root /home/zhaojun/proj26/datasets
 
 # Prune to 50\% + 4-bit with SparseGPT
-python opt.py facebook/opt-125m c4 --sparsity .5 --wbits 4 --data-root /home/zhaojun/proj26/datasets
+python opt.py /home/zhaojun/proj26/models/opt-125m c4 --sparsity .5 --wbits 4 --data-root /home/zhaojun/proj26/datasets
 ```
 
 To run on other OPT models, replace "facebook/opt-125m" by the HuggingFace name of the corresponding model.

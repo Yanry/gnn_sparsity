@@ -67,22 +67,9 @@ def get_ptb(nsamples, seed, seqlen, model, tokenizer, data_root=None):
     if data_root is None:
         data_root = LOCAL_DATA_ROOT
     
-    # 尝试从本地加载，如果失败则从远程加载
-    try:
-        import glob
-        ptb_files = glob.glob(os.path.join(data_root, 'ptb_text_only/**/*.parquet'), recursive=True)
-        if ptb_files:
-            # 按照文件名排序来区分 train 和 test
-            train_files = [f for f in ptb_files if 'train' in f]
-            test_files = [f for f in ptb_files if 'test' in f]
-            traindata = load_dataset('parquet', data_files=train_files, split='train') if train_files else load_dataset('parquet', data_files=ptb_files[:1], split='train')
-            testdata = load_dataset('parquet', data_files=test_files, split='train') if test_files else load_dataset('parquet', data_files=ptb_files[-1:], split='train')
-        else:
-            raise FileNotFoundError('未找到本地 PTB 数据')
-    except Exception as e:
-        print(f'本地加载失败: {e}，从远程加载...')
-        traindata = load_dataset('ptb_text_only', 'penn_treebank', split='train')
-        testdata = load_dataset('ptb_text_only', 'penn_treebank', split='test')
+    
+    traindata = load_dataset('ptb_text_only', 'penn_treebank', split='train')
+    testdata = load_dataset('ptb_text_only', 'penn_treebank', split='test')
 
     trainenc = tokenizer(" ".join(traindata['sentence']), return_tensors='pt')
     testenc = tokenizer(" ".join(testdata['sentence']), return_tensors='pt')
@@ -104,15 +91,16 @@ def get_c4(nsamples, seed, seqlen, model, tokenizer, data_root=None):
     
     # 尝试从本地加载，如果失败则从远程加载
     try:
-        import glob
-        c4_files = glob.glob(os.path.join(data_root, 'c4/**/*.parquet'), recursive=True)
-        if c4_files:
-            traindata = load_dataset('parquet', data_files=c4_files, split='train')
-            valdata = traindata  # 使用同一份数据作为验证集
+        import os
+        train_file = os.path.join(data_root, 'c4/en/c4-train.00000-of-01024.json.gz')
+        val_file = os.path.join(data_root, 'c4/en/c4-validation.00000-of-00008.json.gz')
+        
+        if os.path.exists(train_file) and os.path.exists(val_file):
+            traindata = load_dataset('json', data_files=train_file, split='train')
+            valdata = load_dataset('json', data_files=val_file, split='train')
         else:
             raise FileNotFoundError('未找到本地 C4 数据')
     except Exception as e:
-        print(f'本地加载失败: {e}，从远程加载...')
         traindata = load_dataset(
             'allenai/c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
         )

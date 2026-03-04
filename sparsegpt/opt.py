@@ -337,7 +337,7 @@ if __name__ == '__main__':
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen, data_root=args.data_root
         )
-        print(dataset)
+        print(f'Loading dataset: {dataset} ...')
         opt_eval(model, testloader, DEV, dataset, args.log_wandb)
 
     if args.save:

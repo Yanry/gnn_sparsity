@@ -13,3 +13,4 @@ output/
 *.dict
 *.del
 torch-rgcn/data/*
+sparsegpt/output/*

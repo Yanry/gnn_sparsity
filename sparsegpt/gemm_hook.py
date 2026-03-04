@@ -99,56 +99,73 @@ class GEMMHookManager:
     def _register_matmul_hooks(self, model):
         """为 matmul 操作注册 hook 以捕获 attention 计算"""
         matmul_counter = [0]
+        
+        # 保存原始函数
         original_matmul = torch.matmul
+        original_bmm = torch.bmm
+        original_mm = torch.mm
+        original_tensor_matmul = torch.Tensor.__matmul__
         
-        def matmul_hook(input1, input2):
-            """Hook for matmul operations"""
-            result = original_matmul(input1, input2)
-            
-            # 记录 matmul 操作的信息
-            try:
-                inp1_cpu = input1.detach().cpu() if isinstance(input1, torch.Tensor) else input1
-                inp2_cpu = input2.detach().cpu() if isinstance(input2, torch.Tensor) else input2
-                result_cpu = result.detach().cpu() if isinstance(result, torch.Tensor) else result
+        def create_matmul_hook(op_name, original_func):
+            """创建一个通用的 matmul hook"""
+            def hook(input1, input2):
+                result = original_func(input1, input2)
                 
-                # 只记录足够大的矩阵操作（避免记录太多小操作）
-                if isinstance(inp1_cpu, torch.Tensor) and isinstance(inp2_cpu, torch.Tensor):
-                    if inp1_cpu.numel() > 1000:  # 只记录足够大的操作
-                        matmul_key = f"matmul_{matmul_counter[0]}"
-                        matmul_counter[0] += 1
-                        
-                        self.gemm_data[matmul_key] = {
-                            'input1_shape': tuple(inp1_cpu.shape),
-                            'input2_shape': tuple(inp2_cpu.shape),
-                            'output_shape': tuple(result_cpu.shape),
-                            'input_format': 'float32',
-                            'input1_sparsity': self._compute_sparsity(inp1_cpu),
-                            'input2_sparsity': self._compute_sparsity(inp2_cpu),
-                        }
-                        
-                        # 保存实际的 tensor 数据
-                        if self.current_inference_dir is not None:
-                            tensor_dir = os.path.join(self.current_inference_dir, 'tensors')
-                            os.makedirs(tensor_dir, exist_ok=True)
+                # 记录 matmul 操作的信息
+                try:
+                    inp1_cpu = input1.detach().cpu() if isinstance(input1, torch.Tensor) else input1
+                    inp2_cpu = input2.detach().cpu() if isinstance(input2, torch.Tensor) else input2
+                    result_cpu = result.detach().cpu() if isinstance(result, torch.Tensor) else result
+                    
+                    # 只记录足够大的矩阵操作（避免记录太多小操作）
+                    if isinstance(inp1_cpu, torch.Tensor) and isinstance(inp2_cpu, torch.Tensor):
+                        if inp1_cpu.numel() > 1000:  # 只记录足够大的操作
+                            matmul_key = f"{op_name}_{matmul_counter[0]}"
+                            matmul_counter[0] += 1
                             
-                            # 保存 matmul 的输入和输出
-                            torch.save(inp1_cpu, os.path.join(tensor_dir, f"{matmul_key}_input1.pt"))
-                            torch.save(inp2_cpu, os.path.join(tensor_dir, f"{matmul_key}_input2.pt"))
-                            torch.save(result_cpu, os.path.join(tensor_dir, f"{matmul_key}_output.pt"))
-            except Exception as e:
-                # 忽略保存失败的情况
-                pass
-            
-            return result
+                            self.gemm_data[matmul_key] = {
+                                'operation': op_name,
+                                'input1_shape': tuple(inp1_cpu.shape),
+                                'input2_shape': tuple(inp2_cpu.shape),
+                                'output_shape': tuple(result_cpu.shape),
+                                'input_format': 'float32',
+                                'input1_sparsity': self._compute_sparsity(inp1_cpu),
+                                'input2_sparsity': self._compute_sparsity(inp2_cpu),
+                            }
+                            
+                            # 缓存 tensor 数据到内存，稍后统一保存
+                            self.tensor_cache[f"{matmul_key}_input1"] = inp1_cpu
+                            self.tensor_cache[f"{matmul_key}_input2"] = inp2_cpu
+                            self.tensor_cache[f"{matmul_key}_output"] = result_cpu
+                except Exception as e:
+                    # 忽略保存失败的情况
+                    pass
+                
+                return result
+            return hook
         
-        # 替换 torch.matmul
-        torch.matmul = matmul_hook
+        # 替换各种矩阵乘法函数
+        torch.matmul = create_matmul_hook('matmul', original_matmul)
+        torch.bmm = create_matmul_hook('bmm', original_bmm)
+        torch.mm = create_matmul_hook('mm', original_mm)
+        torch.Tensor.__matmul__ = create_matmul_hook('tensor_matmul', original_tensor_matmul)
+        
+        # 保存原始函数以便恢复
         self._original_matmul = original_matmul
+        self._original_bmm = original_bmm
+        self._original_mm = original_mm
+        self._original_tensor_matmul = original_tensor_matmul
     
     def _restore_matmul(self):
-        """恢复原始的 matmul"""
+        """恢复原始的 matmul 相关函数"""
         if hasattr(self, '_original_matmul'):
             torch.matmul = self._original_matmul
+        if hasattr(self, '_original_bmm'):
+            torch.bmm = self._original_bmm
+        if hasattr(self, '_original_mm'):
+            torch.mm = self._original_mm
+        if hasattr(self, '_original_tensor_matmul'):
+            torch.Tensor.__matmul__ = self._original_tensor_matmul
     
     def save_inference_data(self, ppl_result):
         """保存当前推理的数据"""
@@ -159,6 +176,15 @@ class GEMMHookManager:
         stats_file = os.path.join(self.current_inference_dir, 'gemm_stats.json')
         with open(stats_file, 'w') as f:
             json.dump(self.gemm_data, f, indent=2)
+        
+        # 保存缓存的 tensor 数据到磁盘
+        if self.tensor_cache:
+            tensor_dir = os.path.join(self.current_inference_dir, 'tensors')
+            os.makedirs(tensor_dir, exist_ok=True)
+            
+            for tensor_name, tensor_data in self.tensor_cache.items():
+                tensor_file = os.path.join(tensor_dir, f"{tensor_name}.pt")
+                torch.save(tensor_data, tensor_file)
         
         # 保存 PPL 结果和元数据
         metadata = {
@@ -175,7 +201,7 @@ class GEMMHookManager:
         with open(meta_file, 'w') as f:
             json.dump(metadata, f, indent=2)
         
-        # 检查是否有 tensor 文件
+        # 检查保存的 tensor 文件数量
         tensor_dir = os.path.join(self.current_inference_dir, 'tensors')
         tensor_count = 0
         if os.path.exists(tensor_dir):

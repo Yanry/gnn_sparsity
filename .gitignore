@@ -5,3 +5,11 @@ output/
 *.pyc
 *.pkl
 *.pt
+*.pk
+*.nt
+*.pickle
+*.tsv
+*.gz
+*.dict
+*.del
+torch-rgcn/data/*

@@ -26,6 +26,23 @@ class OPTAttentionHook:
         self.data = {}
         self.layer_counter = 0
         self.original_forward = None
+
+    def _safe_quantile(self, tensor: torch.Tensor, q: float, max_samples: int = 2_000_000) -> float:
+        """在大张量上安全计算分位数：超出阈值时做等步长采样，避免 quantile OOM/size 错误。"""
+        stats_tensor = tensor.detach().float().reshape(-1)
+        numel = stats_tensor.numel()
+        if numel == 0:
+            return 0.0
+
+        if numel > max_samples:
+            step = max(1, numel // max_samples)
+            stats_tensor = stats_tensor[::step]
+            if stats_tensor.numel() > max_samples:
+                stats_tensor = stats_tensor[:max_samples]
+
+        # 在 CPU 上计算更稳妥
+        stats_tensor = stats_tensor.cpu()
+        return float(torch.quantile(stats_tensor, q).item())
         
     def create_hooked_attention_forward(self):
         """
@@ -88,6 +105,12 @@ class OPTAttentionHook:
             
             # ===== 捕获 softmax 操作 =====
             attn_weights_softmax = F.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+            try:
+                top_1_percent_threshold = self._safe_quantile(attn_weights_softmax, 0.99)
+                top_10_percent_threshold = self._safe_quantile(attn_weights_softmax, 0.90)
+            except Exception:
+                top_1_percent_threshold = None
+                top_10_percent_threshold = None
             
             # 记录 softmax 后的 attention weights
             hook_data[f'layer_{layer_id}_attention_weights'] = {
@@ -100,8 +123,8 @@ class OPTAttentionHook:
                 'output_max': float(attn_weights_softmax.max().item()),
                 'output_mean': float(attn_weights_softmax.mean().item()),
                 'output_std': float(attn_weights_softmax.std().item()),
-                'top_1_percent_threshold': float(torch.quantile(attn_weights_softmax, 0.99).item()),
-                'top_10_percent_threshold': float(torch.quantile(attn_weights_softmax, 0.90).item()),
+                'top_1_percent_threshold': top_1_percent_threshold,
+                'top_10_percent_threshold': top_10_percent_threshold,
             }
             
             if save_tensors_flag:

@@ -22,8 +22,9 @@ class OPTAttentionHook:
         Args:
             save_tensors: 是否保存 tensor 数据（会占用大量内存）
         """
-        self.save_tensors = save_tensors
+        self._save_tensors_flag = save_tensors  # 重命名以避免与方法冲突
         self.data = {}
+        self.tensor_cache = {}  # 存储所有输入tensor
         self.layer_counter = 0
         self.original_forward = None
 
@@ -54,8 +55,11 @@ class OPTAttentionHook:
         
         # 在闭包外部定义变量，供闭包内访问
         hook_data = self.data
-        save_tensors_flag = self.save_tensors
+        tensor_cache = self.tensor_cache  # 保存对tensor_cache的引用
+        save_tensors_flag = self._save_tensors_flag
+        safe_quantile = self._safe_quantile  # 保存method引用
         call_counter = [0]  # 使用列表以便在闭包中修改
+        original_forward = self.original_forward  # 保存原始函数副本
         
         # 创建 wrapper
         def hooked_eager_attention_forward(
@@ -75,29 +79,26 @@ class OPTAttentionHook:
             layer_id = getattr(module, 'layer_idx', call_counter[0])
             call_counter[0] += 1
             
-            # ===== 捕获 Q @ K^T matmul =====
+            # ===== 捕获 Q @ K^T matmul 的输入 =====
             key_transposed = key.transpose(-1, -2)
             attn_weights_raw = torch.matmul(query, key_transposed)
             attn_weights = attn_weights_raw * scaling
             
-            # 记录 QK^T 的信息
+            # 记录 QK^T matmul 的输入信息（不记录输出）
             hook_data[f'layer_{layer_id}_QK^T'] = {
                 'operation': 'Q @ K^T',
-                'query_shape': list(query.shape),
-                'key_shape': list(key.shape),
-                'key_transposed_shape': list(key_transposed.shape),
-                'output_shape': list(attn_weights.shape),
+                'input1_name': 'query',
+                'input1_shape': list(query.shape),
+                'input1_sparsity': float((query.numel() - query.count_nonzero().item()) / query.numel() if query.numel() > 0 else 0),
+                'input2_name': 'key_transposed',
+                'input2_shape': list(key_transposed.shape),
+                'input2_sparsity': float((key_transposed.numel() - key_transposed.count_nonzero().item()) / key_transposed.numel() if key_transposed.numel() > 0 else 0),
                 'scaling_factor': float(scaling),
-                'output_numel': int(attn_weights.numel()),
-                'output_sparsity': float((attn_weights == 0).sum().item() / attn_weights.numel()),
-                'output_min': float(attn_weights.min().item()),
-                'output_max': float(attn_weights.max().item()),
-                'output_mean': float(attn_weights.mean().item()),
-                'output_std': float(attn_weights.std().item()),
             }
             
-            if save_tensors_flag:
-                hook_data[f'layer_{layer_id}_QK^T']['tensor'] = attn_weights.detach().cpu()
+            # 保存输入tensor到内存缓存
+            tensor_cache[f'layer_{layer_id}_QK^T_input1_query'] = query.detach().cpu().float()
+            tensor_cache[f'layer_{layer_id}_QK^T_input2_key_transposed'] = key_transposed.detach().cpu().float()
             
             # 应用 attention mask
             if attention_mask is not None:
@@ -106,8 +107,8 @@ class OPTAttentionHook:
             # ===== 捕获 softmax 操作 =====
             attn_weights_softmax = F.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
             try:
-                top_1_percent_threshold = self._safe_quantile(attn_weights_softmax, 0.99)
-                top_10_percent_threshold = self._safe_quantile(attn_weights_softmax, 0.90)
+                top_1_percent_threshold = safe_quantile(attn_weights_softmax, 0.99)
+                top_10_percent_threshold = safe_quantile(attn_weights_softmax, 0.90)
             except Exception:
                 top_1_percent_threshold = None
                 top_10_percent_threshold = None
@@ -118,7 +119,7 @@ class OPTAttentionHook:
                 'input_shape': list(attn_weights.shape),
                 'output_shape': list(attn_weights_softmax.shape),
                 'output_numel': int(attn_weights_softmax.numel()),
-                'output_sparsity': float((attn_weights_softmax == 0).sum().item() / attn_weights_softmax.numel()),
+                'output_sparsity': float((attn_weights_softmax.numel() - attn_weights_softmax.count_nonzero().item()) / attn_weights_softmax.numel() if attn_weights_softmax.numel() > 0 else 0),
                 'output_min': float(attn_weights_softmax.min().item()),
                 'output_max': float(attn_weights_softmax.max().item()),
                 'output_mean': float(attn_weights_softmax.mean().item()),
@@ -133,25 +134,23 @@ class OPTAttentionHook:
             # 应用 dropout
             attn_weights_dropped = F.dropout(attn_weights_softmax, p=dropout, training=module.training)
             
-            # ===== 捕获 softmax(QK^T) @ V matmul =====
+            # ===== 捕获 softmax(QK^T) @ V matmul 的输入 =====
             attn_output = torch.matmul(attn_weights_dropped, value)
             
-            # 记录 attention @ V的信息
-            hook_data[f'layer_{layer_id}_attention@V'] = {
+            # 记录 attention_weights @ V matmul 的输入信息（不记录输出）
+            hook_data[f'layer_{layer_id}_attention_weights_matmul'] = {
                 'operation': 'softmax(Q@K^T) @ V',
-                'attention_weights_shape': list(attn_weights_dropped.shape),
-                'value_shape': list(value.shape),
-                'output_shape': list(attn_output.shape),
-                'output_numel': int(attn_output.numel()),
-                'output_sparsity': float((attn_output == 0).sum().item() / attn_output.numel()),
-                'output_min': float(attn_output.min().item()),
-                'output_max': float(attn_output.max().item()),
-                'output_mean': float(attn_output.mean().item()),
-                'output_std': float(attn_output.std().item()),
+                'input1_name': 'attention_weights_softmax',
+                'input1_shape': list(attn_weights_dropped.shape),
+                'input1_sparsity': float((attn_weights_dropped.numel() - attn_weights_dropped.count_nonzero().item()) / attn_weights_dropped.numel() if attn_weights_dropped.numel() > 0 else 0),
+                'input2_name': 'value',
+                'input2_shape': list(value.shape),
+                'input2_sparsity': float((value.numel() - value.count_nonzero().item()) / value.numel() if value.numel() > 0 else 0),
             }
             
-            if save_tensors_flag:
-                hook_data[f'layer_{layer_id}_attention@V']['tensor'] = attn_output.detach().cpu()
+            # 保存输入tensor到内存缓存
+            tensor_cache[f'layer_{layer_id}_attention_weights_matmul_input1_attention_weights'] = attn_weights_dropped.detach().cpu().float()
+            tensor_cache[f'layer_{layer_id}_attention_weights_matmul_input2_value'] = value.detach().cpu().float()
             
             # transpose 回原始形状
             attn_output = attn_output.transpose(1, 2).contiguous()
@@ -186,7 +185,29 @@ class OPTAttentionHook:
     def reset(self):
         """重置捕获的数据"""
         self.data = {}
+        self.tensor_cache = {}
         self.layer_counter = 0
+    
+    def save_tensors(self, output_dir):
+        """保存所有缓存的tensor到指定目录的tensors子目录"""
+        if not self.tensor_cache:
+            print("⚠ 没有缓存的 attention tensor 数据")
+            return
+        
+        tensor_dir = os.path.join(output_dir, 'tensors')
+        os.makedirs(tensor_dir, exist_ok=True)
+        
+        saved_count = 0
+        for tensor_name, tensor_data in self.tensor_cache.items():
+            try:
+                # 使用 .pt 格式保存
+                tensor_file = os.path.join(tensor_dir, f"{tensor_name}.pt")
+                torch.save(tensor_data, tensor_file)
+                saved_count += 1
+            except Exception as e:
+                print(f"⚠ 保存 tensor {tensor_name} 失败: {e}")
+        
+        print(f"  ✓ 已保存 {saved_count} 个 attention matmul 输入 tensor 到 tensors/")
     
     def get_summary(self):
         """获取捕获数据的摘要"""
@@ -233,25 +254,22 @@ class OPTAttentionHook:
             qkt_key = f'layer_{layer_id}_QK^T'
             if qkt_key in self.data:
                 qkt = self.data[qkt_key]
-                print(f"  Q@K^T: shape={qkt['output_shape']}, "
-                      f"range=[{qkt['output_min']:.4f}, {qkt['output_max']:.4f}], "
-                      f"mean={qkt['output_mean']:.4f}")
+                print(f"  Q@K^T inputs: query_shape={qkt['input1_shape']}, "
+                      f"key_transposed_shape={qkt['input2_shape']}")
             
             # Attention weights
             attn_key = f'layer_{layer_id}_attention_weights'
             if attn_key in self.data:
                 attn = self.data[attn_key]
-                print(f"  Softmax: shape={attn['output_shape']}, "
-                      f"range=[{attn['output_min']:.6f}, {attn['output_max']:.6f}], "
-                      f"mean={attn['output_mean']:.6f}")
+                print(f"  Attention weights: shape={attn['output_shape']}, "
+                      f"sparsity={attn['output_sparsity']:.4f}")
             
-            # Attention @ V
-            attn_v_key = f'layer_{layer_id}_attention@V'
+            # Attention weights @ V matmul
+            attn_v_key = f'layer_{layer_id}_attention_weights_matmul'
             if attn_v_key in self.data:
                 attn_v = self.data[attn_v_key]
-                print(f"  Attn@V: shape={attn_v['output_shape']}, "
-                      f"range=[{attn_v['output_min']:.4f}, {attn_v['output_max']:.4f}], "
-                      f"mean={attn_v['output_mean']:.4f}")
+                print(f"  Attn@V inputs: attention_weights_shape={attn_v['input1_shape']}, "
+                      f"value_shape={attn_v['input2_shape']}")
             
             print()
 

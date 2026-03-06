@@ -57,203 +57,63 @@ class ImprovedGEMMHookManager:
         self.attention_intermediates = {}
         
     def register_hooks(self, model):
-        """注册所有线性层和 attention matmul 的 hook"""
+        """注册所有线性层的 hook，只记录 input 和 weight"""
         self.hooks = []
-        gemm_counter = [0]
         
+        # 首先收集所有Linear层及其索引
+        linear_modules = []
         for name, module in model.named_modules():
-            # Hook for Linear layers
             if isinstance(module, torch.nn.Linear):
-                def linear_hook(module, input, output, module_name=name, idx=gemm_counter[0]):
-                    if len(input) >= 1:
-                        inp_tensor = input[0].detach().cpu()
-                        weight_tensor = module.weight.data.detach().cpu()
-                        
-                        gemm_key = f"linear_{idx}_{module_name}"
-                        self.gemm_data[gemm_key] = {
-                            'input_shape': tuple(inp_tensor.shape),
-                            'weight_shape': tuple(weight_tensor.shape),
-                            'input_format': 'float32',
-                            'input_sparsity': self._compute_sparsity(inp_tensor),
-                            'weight_sparsity': self._compute_sparsity(weight_tensor),
-                        }
-                
-                hook = module.register_forward_hook(linear_hook)
-                self.hooks.append(hook)
-                gemm_counter[0] += 1
+                linear_modules.append((name, module))
         
-        # 为 attention 层添加更详细的 hook
-        self._register_detailed_attention_hooks(model)
+        # 在闭包外保存对self的引用
+        manager_ref = self
         
-    def _register_detailed_attention_hooks(self, model):
-        """
-        为 Attention 层添加详细的 hook，捕获：
-        1. Q/K/V 的投影输出
-        2. Q @ K^T 的 matmul
-        3. softmax(Q@K^T) @ V 的 matmul
-        """
-        attn_counter = [0]
-        
-        for name, module in model.named_modules():
-            if 'self_attn' in name and not 'layer_norm' in name:
-                block_id = attn_counter[0]
-                
-                # 为子模块（q_proj, k_proj, v_proj, out_proj）注册 hook
-                if hasattr(module, 'q_proj'):
-                    self._hook_projection(module.q_proj, f"block_{block_id}_q_proj")
-                if hasattr(module, 'k_proj'):
-                    self._hook_projection(module.k_proj, f"block_{block_id}_k_proj")
-                if hasattr(module, 'v_proj'):
-                    self._hook_projection(module.v_proj, f"block_{block_id}_v_proj")
-                if hasattr(module, 'out_proj'):
-                    self._hook_projection(module.out_proj, f"block_{block_id}_out_proj")
-                
-                # 为 attention 整体的前向传播注册 hook 以捕获 QKV matmul
-                def attention_forward_hook(mod, input, output, bid=block_id, aname=name):
-                    """Wrapper hook 来捕获 attention 内部的 matmul"""
-                    try:
-                        if isinstance(output, tuple):
-                            attn_output = output[0]
-                        else:
-                            attn_output = output
-                            
-                        if isinstance(attn_output, torch.Tensor):
-                            attn_key = f"attention_output_block_{bid}"
-                            self.gemm_data[attn_key] = {
-                                'operation': 'attention_output',
-                                'module': aname,
-                                'output_shape': tuple(attn_output.shape),
-                                'output_numel': int(attn_output.numel()),
-                                'output_sparsity': float(self._compute_sparsity(
-                                    attn_output.detach().cpu().float()
-                                )),
-                            }
-                            self.tensor_cache[attn_key] = attn_output.detach().cpu().float()
-                    except Exception as e:
-                        pass
-                
-                hook = module.register_forward_hook(attention_forward_hook)
-                self.hooks.append(hook)
-                attn_counter[0] += 1
-        
-        # 现在进行更激进的 matmul hook 来捕获 QK^T 和 attention*V
-        self._register_attention_matmul_hooks(model)
-    
-    def _hook_projection(self, linear_module, proj_name):
-        """为投影层（q/k/v/out_proj）添加 hook"""
-        def proj_hook(module, input, output):
-            try:
-                if isinstance(output, torch.Tensor):
-                    out_cpu = output.detach().cpu().float()
-                    self.gemm_data[f"{proj_name}_output"] = {
-                        'operation': 'projection_output',
-                        'projection': proj_name,
-                        'output_shape': tuple(out_cpu.shape),
-                        'output_numel': int(out_cpu.numel()),
-                        'output_sparsity': float(self._compute_sparsity(out_cpu)),
-                    }
-                    self.tensor_cache[f"{proj_name}_output"] = out_cpu
+        # 为每个Linear层注册hook
+        for layer_idx, (module_name, module) in enumerate(linear_modules):
+            def linear_hook(module, input, output, module_name=module_name, idx=layer_idx):
+                if len(input) >= 1:
+                    inp_tensor = input[0].detach().cpu().float()
+                    weight_tensor = module.weight.data.detach().cpu().float()
                     
-                    # 缓存 Q/K/V 供后续计算使用
-                    self.attention_intermediates[proj_name] = out_cpu
-            except Exception as e:
-                pass
-        
-        hook = linear_module.register_forward_hook(proj_hook)
-        self.hooks.append(hook)
-    
-    def _register_attention_matmul_hooks(self, model):
-        """
-        为 attention 中的 matmul 操作添加 hook
-        这包括：
-        - Q @ K^T (attention scores)
-        - softmax(scores) @ V (attention output)
-        """
-        # 保存原始的 matmul 函数
-        self._original_matmul = torch.matmul
-        self._original_bmm = torch.bmm
-        self._original_mm = torch.mm
-        
-        matmul_counter = [0]
-        layer_matmul_counter = {}  # 追踪每个 layer 中的 matmul 数量
-        
-        def create_attention_aware_matmul(op_name, original_op):
-            """创建能够识别 attention matmul 的 hook"""
-            def hooked_matmul(input1, input2, *args, **kwargs):
-                result = original_op(input1, input2, *args, **kwargs)
-                
-                try:
-                    # 检查是否是 attention 相关的 matmul
-                    if isinstance(input1, torch.Tensor) and isinstance(input2, torch.Tensor):
-                        # 获取形状用于识别
-                        shape1 = input1.shape
-                        shape2 = input2.shape
-                        result_shape = result.shape
-                        
-                        # 启发式判断：
-                        # QK^T: shape1 = [..., seq_len, head_dim], shape2 = [..., head_dim, seq_len]
-                        #       result = [..., seq_len, seq_len]
-                        # attn*V: shape1 = [..., seq_len, seq_len], shape2 = [..., seq_len, head_dim]
-                        #       result = [..., seq_len, head_dim]
-                        
-                        is_qkt_like = (len(shape1) == len(shape2) and 
-                                     len(shape1) >= 2 and
-                                     shape1[-1] == shape2[-2] and
-                                     shape1[-2] == result_shape[-2])
-                        
-                        matmul_counter[0] += 1
-                        matmul_idx = matmul_counter[0]
-                        
-                        inp1_cpu = input1.detach().cpu().float() if input1.numel() > 100 else None
-                        inp2_cpu = input2.detach().cpu().float() if input2.numel() > 100 else None
-                        result_cpu = result.detach().cpu().float()
-                        
-                        matmul_key = f"matmul_{matmul_idx}_{op_name}"
-                        self.gemm_data[matmul_key] = {
-                            'operation': op_name,
-                            'input1_shape': tuple(shape1),
-                            'input2_shape': tuple(shape2),
-                            'output_shape': tuple(result_shape),
-                            'is_attention_like': is_qkt_like,
-                            'input1_sparsity': float(self._compute_sparsity(inp1_cpu)) if inp1_cpu is not None else 0,
-                            'input2_sparsity': float(self._compute_sparsity(inp2_cpu)) if inp2_cpu is not None else 0,
-                            'output_sparsity': float(self._compute_sparsity(result_cpu)),
-                        }
-                        
-                        # 保存较小的 tensor
-                        if inp1_cpu is not None and inp1_cpu.numel() < 1e7:
-                            self.tensor_cache[f"{matmul_key}_input1"] = inp1_cpu
-                        if inp2_cpu is not None and inp2_cpu.numel() < 1e7:
-                            self.tensor_cache[f"{matmul_key}_input2"] = inp2_cpu
-                        if result_cpu.numel() < 1e7:
-                            self.tensor_cache[f"{matmul_key}_output"] = result_cpu
-                            
-                except Exception as e:
-                    pass
-                
-                return result
+                    # 使用 layer_数字 作为开头，保持命名一致
+                    gemm_key_input = f"layer_{idx}_linear_input_{module_name}"
+                    gemm_key_weight = f"layer_{idx}_linear_weight_{module_name}"
+                    
+                    # 记录统计信息到manager_ref
+                    manager_ref.gemm_data[gemm_key_input] = {
+                        'operation': 'linear_input',
+                        'input_shape': tuple(inp_tensor.shape),
+                        'input_sparsity': manager_ref._compute_sparsity(inp_tensor),
+                        'input_format': 'float32',
+                    }
+                    
+                    manager_ref.gemm_data[gemm_key_weight] = {
+                        'operation': 'linear_weight',
+                        'weight_shape': tuple(weight_tensor.shape),
+                        'weight_sparsity': manager_ref._compute_sparsity(weight_tensor),
+                        'weight_format': 'float32',
+                    }
+                    
+                    # 保存tensor到缓存
+                    manager_ref.tensor_cache[gemm_key_input] = inp_tensor
+                    manager_ref.tensor_cache[gemm_key_weight] = weight_tensor
             
-            return hooked_matmul
+            hook = module.register_forward_hook(linear_hook)
+            self.hooks.append(hook)
         
-        # 替换全局的 matmul 函数
-        torch.matmul = create_attention_aware_matmul('matmul', self._original_matmul)
-        torch.bmm = create_attention_aware_matmul('bmm', self._original_bmm)
-        torch.mm = create_attention_aware_matmul('mm', self._original_mm)
-    
-    def _restore_matmul(self):
-        """恢复原始的 matmul 函数"""
-        if hasattr(self, '_original_matmul'):
-            torch.matmul = self._original_matmul
-        if hasattr(self, '_original_bmm'):
-            torch.bmm = self._original_bmm
-        if hasattr(self, '_original_mm'):
-            torch.mm = self._original_mm
-    
+        # 调试信息：打印注册的hooks数量
+        print(f"✓ 已注册 {len(self.hooks)} 个 Linear 层 hook")
+        
     def _compute_sparsity(self, tensor):
         """计算张量的稀疏性"""
         if tensor is None or tensor.numel() == 0:
             return 0.0
         return float((tensor == 0).sum().item() / tensor.numel())
+    
+    def _restore_matmul(self):
+        """恢复原始的 matmul 函数（已弃用，保留向后兼容）"""
+        pass
     
     def remove_hooks(self):
         """移除所有注册的 hook"""
@@ -272,17 +132,23 @@ class ImprovedGEMMHookManager:
         with open(stats_file, 'w') as f:
             json.dump(self.gemm_data, f, indent=2)
         
-        # 保存缓存的 tensor 数据到磁盘
+        print(f"  ✓ 已保存 {len(self.gemm_data)} 个 linear 层统计信息到 gemm_stats.json")
+        
+        # 保存缓存的 tensor 数据到 tensors 目录（统一存放所有tensor）
         if self.tensor_cache:
             tensor_dir = os.path.join(self.current_inference_dir, 'tensors')
             os.makedirs(tensor_dir, exist_ok=True)
             
+            saved_count = 0
             for tensor_name, tensor_data in self.tensor_cache.items():
                 tensor_file = os.path.join(tensor_dir, f"{tensor_name}.pt")
                 try:
                     torch.save(tensor_data, tensor_file)
-                except:
-                    pass
+                    saved_count += 1
+                except Exception as e:
+                    print(f"⚠ 保存 tensor {tensor_name} 失败: {e}")
+            
+            print(f"  ✓ 已保存 {saved_count} 个 linear 层 tensor 到 tensors/")
         
         # 保存元数据
         metadata = {

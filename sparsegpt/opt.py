@@ -1,10 +1,9 @@
 import time
-
 import torch
 import torch.nn as nn
-
-from quant import *
 from sparsegpt import *
+from quant import *
+from datautils import *
 from modelutils import *
 
 try:

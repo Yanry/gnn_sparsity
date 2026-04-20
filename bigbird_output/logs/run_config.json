@@ -1,0 +1,19 @@
+{
+  "model_path": "/home/zhaojun/proj26/models/bigbird",
+  "dataset_path": "/home/zhaojun/proj26/datasets/wikitext",
+  "attention_type": "original_full",
+  "samples": 10,
+  "target_lengths": [
+    768,
+    832,
+    896,
+    960,
+    1024,
+    1088,
+    1152,
+    1216,
+    1280,
+    1344
+  ],
+  "device": "cuda"
+}

@@ -1,0 +1,142 @@
+{
+  "record_id": 5,
+  "model_name": "gat",
+  "dataset_name": "ogbn-arxiv",
+  "layer_name": "layer1_att_src",
+  "hook_source": "torch.matmul",
+  "operator_type": "matmul",
+  "note": "",
+  "input_a_name": "projected_features",
+  "input_a_path": "/home/nizhj/gnn_sparsity/analysis/gnn_operator_capture/outputs/gat/ogbn-arxiv/tensors/0005_layer1_att_src_matmul_A.pt",
+  "input_a_stats": {
+    "shape": [
+      169343,
+      40
+    ],
+    "matrix_view_shape": [
+      169343,
+      40
+    ],
+    "dtype": "torch.float32",
+    "device": "cpu",
+    "numel": 6773720,
+    "nonzero": 6076120,
+    "sparsity_ratio": 0.10298624684811297,
+    "zero_ratio": 0.10298624684811297,
+    "min": -0.3185282349586487,
+    "max": 0.40888187289237976,
+    "mean": 0.0032495434517550528,
+    "std": 0.0568625082001799,
+    "is_structurally_sparse": false,
+    "nnz": 6076120,
+    "sparse_layout": null,
+    "block_sparsity": {
+      "1x1": {
+        "block_rows": 1,
+        "block_cols": 1,
+        "nonzero_blocks": 6076120,
+        "total_blocks": 6773720,
+        "block_sparsity_ratio": 0.10298624684811297
+      },
+      "4x4": {
+        "block_rows": 4,
+        "block_cols": 4,
+        "nonzero_blocks": 423220,
+        "total_blocks": 423360,
+        "block_sparsity_ratio": 0.0003306878306877925
+      },
+      "8x8": {
+        "block_rows": 8,
+        "block_cols": 8,
+        "nonzero_blocks": 105840,
+        "total_blocks": 105840,
+        "block_sparsity_ratio": 0.0
+      },
+      "16x16": {
+        "block_rows": 16,
+        "block_cols": 16,
+        "nonzero_blocks": 31752,
+        "total_blocks": 31752,
+        "block_sparsity_ratio": 0.0
+      },
+      "32x32": {
+        "block_rows": 32,
+        "block_cols": 32,
+        "nonzero_blocks": 10584,
+        "total_blocks": 10584,
+        "block_sparsity_ratio": 0.0
+      }
+    },
+    "thresholded_sparsity": {
+      "abs_lt_1e-12": 0.102986246848113,
+      "abs_lt_1e-08": 0.10298639447748062,
+      "abs_lt_1e-04": 0.10429276675150434
+    }
+  },
+  "input_b_name": "attention_vector",
+  "input_b_path": "/home/nizhj/gnn_sparsity/analysis/gnn_operator_capture/outputs/gat/ogbn-arxiv/tensors/0005_layer1_att_src_matmul_B.pt",
+  "input_b_stats": {
+    "shape": [
+      40
+    ],
+    "matrix_view_shape": [
+      1,
+      40
+    ],
+    "dtype": "torch.float32",
+    "device": "cpu",
+    "numel": 40,
+    "nonzero": 40,
+    "sparsity_ratio": 0.0,
+    "zero_ratio": 0.0,
+    "min": -0.3410913348197937,
+    "max": 0.34466788172721863,
+    "mean": -0.003844956401735544,
+    "std": 0.20494415870266688,
+    "is_structurally_sparse": false,
+    "nnz": 40,
+    "sparse_layout": null,
+    "block_sparsity": {
+      "1x1": {
+        "block_rows": 1,
+        "block_cols": 1,
+        "nonzero_blocks": 40,
+        "total_blocks": 40,
+        "block_sparsity_ratio": 0.0
+      },
+      "4x4": {
+        "block_rows": 4,
+        "block_cols": 4,
+        "nonzero_blocks": 10,
+        "total_blocks": 10,
+        "block_sparsity_ratio": 0.0
+      },
+      "8x8": {
+        "block_rows": 8,
+        "block_cols": 8,
+        "nonzero_blocks": 5,
+        "total_blocks": 5,
+        "block_sparsity_ratio": 0.0
+      },
+      "16x16": {
+        "block_rows": 16,
+        "block_cols": 16,
+        "nonzero_blocks": 3,
+        "total_blocks": 3,
+        "block_sparsity_ratio": 0.0
+      },
+      "32x32": {
+        "block_rows": 32,
+        "block_cols": 32,
+        "nonzero_blocks": 2,
+        "total_blocks": 2,
+        "block_sparsity_ratio": 0.0
+      }
+    },
+    "thresholded_sparsity": {
+      "abs_lt_1e-12": 0.0,
+      "abs_lt_1e-08": 0.0,
+      "abs_lt_1e-04": 0.0
+    }
+  }
+}

@@ -12,5 +12,8 @@ output/
 *.gz
 *.dict
 *.del
+*.pth
+*.npz
+*.bin
 torch-rgcn/data/*
 sparsegpt/output/*

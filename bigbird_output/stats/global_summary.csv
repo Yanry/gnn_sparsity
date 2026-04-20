@@ -1,0 +1,2 @@
+attention_mode,tensor_name,count,mean_sparsity_ratio,mean_value,mean_std
+original_full,attention_probs,120,0.9521602218230855,0.0008464883467240725,0.011927966556201378

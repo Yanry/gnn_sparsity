@@ -1,0 +1,7 @@
+{
+  "sample_id": 1,
+  "target_length": 768,
+  "tokenized_length": 925,
+  "max_abs_diff_layer0": 0.0,
+  "mean_abs_diff_layer0": 0.0
+}

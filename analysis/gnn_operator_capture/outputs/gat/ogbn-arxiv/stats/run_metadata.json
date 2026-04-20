@@ -1,0 +1,9 @@
+{
+  "model_name": "gat",
+  "dataset_name": "ogbn-arxiv",
+  "num_records": 8,
+  "output_dir": "/home/nizhj/gnn_sparsity/analysis/gnn_operator_capture/outputs/gat/ogbn-arxiv",
+  "notes": [
+    "GAT attention is represented explicitly as a sparse weighted adjacency built from edge-wise coefficients; the captured SpMM corresponds to that attention matrix multiplied by projected node features."
+  ]
+}

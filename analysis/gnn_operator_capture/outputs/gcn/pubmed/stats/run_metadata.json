@@ -1,0 +1,7 @@
+{
+  "model_name": "gcn",
+  "dataset_name": "pubmed",
+  "num_records": 4,
+  "output_dir": "/home/nizhj/gnn_sparsity/analysis/gnn_operator_capture/outputs/gcn/pubmed",
+  "notes": []
+}

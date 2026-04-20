@@ -1,0 +1,7 @@
+{
+  "model_name": "graphsage",
+  "dataset_name": "cora",
+  "num_records": 6,
+  "output_dir": "/home/nizhj/gnn_sparsity/analysis/gnn_operator_capture/outputs/graphsage/cora",
+  "notes": []
+}

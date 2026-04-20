@@ -1,0 +1,7 @@
+{
+  "model_name": "gin",
+  "dataset_name": "citeseer",
+  "num_records": 6,
+  "output_dir": "/home/nizhj/gnn_sparsity/analysis/gnn_operator_capture/outputs/gin/citeseer",
+  "notes": []
+}
